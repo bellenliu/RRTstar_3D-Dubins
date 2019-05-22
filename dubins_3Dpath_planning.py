@@ -3,29 +3,35 @@ import math
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 import dubins_2Dpath_planning
-
+#theta Θ  cosine 余弦函数
 def cosine_sine(theta):
-    """ Returns the cosine and sine value of an angle. """
+    """ Returns the cosine and sine value of an angle. 返回角度的余弦和正弦值。"""
     return math.cos(theta), math.sin(theta)
-
-def mod2pi(theta):
+#math.pi  Π值3.1415928  180°
+#math.floor 返回小于其的整数
+def mod2pi(theta):  
+       """ 将角度转换为180度内 """
     return theta - 2.0 * math.pi * math.floor(theta / 2.0 / math.pi)
-
+ 
 def unit_vector(vector):
-    """ Returns the unit vector of the vector. """
-    return vector / (np.linalg.norm(vector) + 1e-06) # Addition of small number to prevent division by zero
+    """ Returns the unit vector of the vector.返回向量的单位向量。 """
+    return vector / (np.linalg.norm(vector) + 1e-06) # Addition of small number to prevent division by zero增加少量, 以防止除以零
 
 def angle_between(v1, v2):
-    """ Returns the angle in radians between vectors 'v1' and 'v2' """
+    """ Returns the angle in radians between vectors 'v1' and 'v2'返回向量 "v1" 和 "v1" 之间的弧度角 """
     v1_u = unit_vector(v1)
     v2_u = unit_vector(v2)
     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
 
 def obtain_heading_fpa(unit_vect):
+    """"获得偏转角 俯仰角  unit_vect为单位向量"""
     psi = math.atan2(unit_vect[1], (unit_vect[0]+1e-06)) # Addition of small number to prevent division by zero
     gamma = math.atan(unit_vect[2]/(math.sqrt(unit_vect[0]**2 + unit_vect[1]**2)+1e-06)) # Addition of small number to prevent division by zero
     return psi, gamma
 
+
+
+#判断左右圆
 def R1(X_f_T, psi_f_T, gamma_f_T, Rmin, S0=-1):  
     Cpsi_f_T, Spsi_f_T = cosine_sine(psi_f_T)
     Cgamma_f_T, Sgamma_f_T = cosine_sine(gamma_f_T) 
@@ -101,6 +107,9 @@ def L2(X_f_T, psi_f_T, gamma_f_T, Rmin, S0=1):
     if psi_t0_T < 0:
         return None, mode
     return psi_t0_T, mode
+#判断左右圆
+
+
 
 def Tplane_maneuver(X_f_T, ev_f_T, psi_f_T, gamma_f_T, Rmin):
     planners = [R1, R2, L1, L2]
@@ -115,9 +124,9 @@ def Tplane_maneuver(X_f_T, ev_f_T, psi_f_T, gamma_f_T, Rmin):
             if mode[0] == "R":
                 S0 = -1
             else:
-                S0 = 1
+                S0 = 1      #给赋值确定左右
             
-            # Verification of the obtained psi_t0
+            # Verification of the obtained psi_t0  核实所获得的 psi_t0
             X_t0_T = np.array([S0*Rmin*math.sin(psi_t0_T), S0*Rmin*(1-math.cos(psi_t0_T)), 0.0])    
             Cpsi_t0_T, Spsi_t0_T = cosine_sine(psi_t0_T)
             X1_f_T = X_f_T + ev_f_T
@@ -127,19 +136,19 @@ def Tplane_maneuver(X_f_T, ev_f_T, psi_f_T, gamma_f_T, Rmin):
             b = X_f_T[2]*(X1_f_T[0]-X_t0_T[0]) - X1_f_T[2]*(X_f_T[0]-X_t0_T[0])
             c = (X_f_T[0]-X_t0_T[0])*(X1_f_T[1]-X_t0_T[1]) - (X1_f_T[0]-X_t0_T[0])*(X_f_T[1]-X_t0_T[1])
         
-            # Normal vectors of T plane and P plane
+            # Normal vectors of T plane and P planeT 平面和 P 平面的法线向量
             NT = np.array([0, 0, 1])
             NP = np.array([a, b, c])
         
             GAMMA = angle_between(NT, NP)
             CGAMMA, SGAMMA = cosine_sine(GAMMA)
-            # Transformation matrix from T-plane to P-plane 
+            # Transformation matrix from T-plane to P-plane 从 t 平面到 p 平面的变换矩阵
             TtoP = np.array([[Cpsi_t0_T, Spsi_t0_T, 0.0],
                              [-Spsi_t0_T*CGAMMA, Cpsi_t0_T*CGAMMA, SGAMMA],
                              [Spsi_t0_T*SGAMMA, -Cpsi_t0_T*SGAMMA, CGAMMA]])
             
             X_f_P = TtoP.dot(X_f_T - X_t0_T)
-            # Z-coordinate of destination waypoint in P-plane must be zero
+            # Z-coordinate of destination waypoint in P-plane must be zero  P 平面中目标航点的 z 坐标必须为零
             if(X_f_P[2] <= 1e-03):
                 cost = abs(psi_t0_T*Rmin)
                 if bcost > cost:
@@ -149,7 +158,7 @@ def Tplane_maneuver(X_f_T, ev_f_T, psi_f_T, gamma_f_T, Rmin):
     px_T, py_T, pz_T, ppsi_T, pgamma_T = generate_course_Tplane(bpsi_t0_T, bmode, Rmin)
     return px_T, py_T, pz_T, ppsi_T, pgamma_T, bcost, bmode
     
-def generate_course_Tplane(psi_t0_T, mode, Rmin):
+def generate_course_Tplane(psi_t0_T, mode, Rmin):#生成航向 _ 平面
     if mode[0] == "R":
         S0 = -1
     else:
@@ -167,7 +176,7 @@ def generate_course_Tplane(psi_t0_T, mode, Rmin):
 
     return px_T, py_T, pz_T, ppsi_T, pgamma_T
 
-def transform_trajectory(px_current, py_current, pz_current, ref_origin, TransMat):
+def transform_trajectory(px_current, py_current, pz_current, ref_origin, TransMat):  #变换 _ 轨迹
     px_target, py_target, pz_target = [], [], []
     for x, y, z in zip(px_current, py_current, pz_current):
         px_target.append(TransMat[0][0]*x + TransMat[0][1]*y + TransMat[0][2]*z + ref_origin[0])
@@ -175,7 +184,7 @@ def transform_trajectory(px_current, py_current, pz_current, ref_origin, TransMa
         pz_target.append(TransMat[2][0]*x + TransMat[2][1]*y + TransMat[2][2]*z + ref_origin[2])
     return px_target, py_target, pz_target
     
-def transform_crossingdir(psi_current, gamma_current, TransMat):
+def transform_crossingdir(psi_current, gamma_current, TransMat): #变换 _ 交叉
     psi_target, gamma_target = [], []
     for (psi,gamma) in zip(psi_current, gamma_current):
         Cpsi, Spsi = cosine_sine(psi)
